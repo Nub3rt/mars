@@ -455,6 +455,14 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->belongsToMany(PresenceCheck::class);
     }
 
+    /**
+     * @return BelongsToMany The reservable items the user has ever reserved
+     */
+    public function reservableItems() : BelongsToMany
+    {
+        return $this->belongsToMany(ReservableItem::class, Reservation::class, 'user_id', 'reservable_item_id');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Local scopes
