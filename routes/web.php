@@ -20,12 +20,13 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Network\AdminCheckoutController;
 use App\Http\Controllers\Network\AdminInternetController;
-use App\Http\Controllers\Network\AdminMacAddressController;
 use App\Http\Controllers\Network\InternetController;
 use App\Http\Controllers\Network\MacAddressController;
 use App\Http\Controllers\Network\RouterController;
+use App\Http\Controllers\IssuesController;
 use App\Http\Controllers\Secretariat\DocumentController;
-use App\Http\Controllers\Secretariat\RegistrationsController;
+use App\Http\Controllers\Secretariat\GuestsController;
+use App\Http\Controllers\Secretariat\InvitationController;
 use App\Http\Controllers\Secretariat\SemesterEvaluationController;
 use App\Http\Controllers\Secretariat\UserController;
 use App\Http\Controllers\StudentsCouncil\CommunityServiceController;
@@ -35,6 +36,10 @@ use App\Http\Controllers\StudentsCouncil\GeneralAssemblyController;
 use App\Http\Controllers\StudentsCouncil\GeneralAssemblyPresenceCheckController;
 use App\Http\Controllers\StudentsCouncil\GeneralAssemblyQuestionController;
 use App\Http\Controllers\StudentsCouncil\MrAndMissController;
+use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\OnlyHungarian;
+use App\Http\Middleware\EnsureVerified;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -61,14 +66,14 @@ Route::get('/privacy_policy', [HomeController::class, 'privacyPolicy'])->name('p
 Route::get('/img/{filename}', [HomeController::class, 'getPicture']);
 Route::get('/setlocale/{locale}', [HomeController::class, 'setLocale'])->name('setlocale');
 
-Auth::routes();
+Auth::routes(); //check \Laravel\Ui\AuthRouteMethods
 
 Route::get('/register/guest', [RegisterController::class, 'showTenantRegistrationForm'])->name('register.guest');
 
-Route::middleware(['auth', 'log', 'only_hungarian'])->group(function () {
+Route::middleware([Authenticate::class, LogRequests::class, OnlyHungarian::class])->group(function () {
     Route::get('/application', [ApplicationController::class, 'showApplicationForm'])->name('application');
 });
-Route::middleware(['auth', 'log'])->group(function () {
+Route::middleware([Authenticate::class, LogRequests::class])->group(function () {
     /** Routes that needs to be accessed during the application process */
     Route::post('/application', [ApplicationController::class, 'storeApplicationForm'])->name('application.store');
     Route::post('/users/{user}/profile_picture', [UserController::class, 'storeProfilePicture'])->name('users.update.profile-picture');
@@ -80,25 +85,24 @@ Route::middleware(['auth', 'log'])->group(function () {
     Route::post('/application/finalize', [ApplicationController::class, 'finalizeApplicationProcess'])->name('application.finalize');
 });
 
-Route::middleware(['auth', 'log', 'verified'])->group(function () {
+Route::middleware([Authenticate::class, LogRequests::class, EnsureVerified::class])->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::post('/home/edit', [HomeController::class, 'editNews'])->name('home.edit');
-    Route::post('/color/{mode}', [HomeController::class, 'colorMode'])->name('set-color-mode');
 
-    Route::post('/report_bug', [HomeController::class, 'reportBug'])->name('reportbug');
-    Route::get('/report_bug', [HomeController::class, 'indexReportBug'])->name('index_reportbug');
+    /** Issue reporting */
+    Route::get('/issues', [IssuesController::class, 'create'])->name('issues.create');
+    Route::post('/issues/create', [IssuesController::class, 'store'])->name('issues.store');
 
     /** User related routes */
     Route::get('/profile', [UserController::class, 'profile'])->name('profile');
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
-    Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::post('/users/{user}/tenant_until', [UserController::class, 'updateTenantUntil'])->name('users.update.tenant_until');
     Route::post('/users/{user}/roles/{role}', [UserController::class, 'addRole'])->name('users.roles.add');
     Route::delete('/users/{user}/roles/{role}', [UserController::class, 'removeRole'])->name('users.roles.delete');
-    Route::post('/users/update_password', [UserController::class, 'updatePassword'])->name('users.update.password')->withoutMiddleware('log');
+    Route::post('/users/update_password', [UserController::class, 'updatePassword'])->name('users.update.password')->withoutMiddleware(LogRequests::class);
     Route::get('/users/tenant_update/show', [UserController::class, 'showTenantUpdate'])->name('users.tenant-update.show');
-    Route::get('/users/tenant_update/applicant', [UserController::class, 'tenantToApplicant'])->name('users.tenant-update.to-applicant');
+    Route::post('/users/tenant_update/applicant', [UserController::class, 'tenantToApplicant'])->name('users.tenant-update.to-applicant');
 
     /** Localization */
     Route::get('/localizations', [LocaleController::class, 'index'])->name('localizations');
@@ -161,12 +165,11 @@ Route::middleware(['auth', 'log', 'verified'])->group(function () {
     Route::post('/routers/{router}/delete', [RouterController::class, 'delete'])->name('routers.delete');
 
     /** Registration handling */
-    Route::middleware(['can:registration.handle'])->group(function () {
-        Route::get('/secretariat/registrations', [RegistrationsController::class, 'index'])->name('secretariat.registrations');
-        Route::get('/secretariat/registrations/accept/{id}', [RegistrationsController::class, 'accept'])->name('secretariat.registrations.accept');
-        Route::get('/secretariat/registrations/reject/{id}', [RegistrationsController::class, 'reject'])->name('secretariat.registrations.reject');
-        Route::post('/secretariat/registrations/invite', [RegistrationsController::class, 'invite'])->name('secretariat.registrations.invite');
-    });
+    Route::get('/secretariat/registrations', [GuestsController::class, 'index'])->name('secretariat.registrations');
+    Route::get('/secretariat/registrations/accept/{id}', [GuestsController::class, 'accept'])->name('secretariat.registrations.accept');
+    Route::get('/secretariat/registrations/reject/{id}', [GuestsController::class, 'reject'])->name('secretariat.registrations.reject');
+    Route::post('/secretariat/invite', [InvitationController::class, 'store'])->name('secretariat.invite');
+
     /** Application handling */
     Route::get('/applications', [ApplicationController::class, 'showApplications'])->name('applications');
     Route::post('/applications', [ApplicationController::class, 'editApplication'])->name('applications.edit');
@@ -253,11 +256,11 @@ Route::middleware(['auth', 'log', 'verified'])->group(function () {
     Route::get('/general_assemblies/{general_assembly}/questions/{question}', [GeneralAssemblyQuestionController::class, 'show'])->name('general_assemblies.questions.show');
     Route::post('/general_assemblies/{general_assembly}/questions/{question}/open', [GeneralAssemblyQuestionController::class, 'openQuestion'])->name('general_assemblies.questions.open');
     Route::post('/general_assemblies/{general_assembly}/questions/{question}/close', [GeneralAssemblyQuestionController::class, 'closeQuestion'])->name('general_assemblies.questions.close');
-    Route::post('/general_assemblies/{general_assembly}/questions/{question}/votes', [GeneralAssemblyQuestionController::class, 'saveVote'])->name('general_assemblies.questions.votes.store')->withoutMiddleware('log');
+    Route::post('/general_assemblies/{general_assembly}/questions/{question}/votes', [GeneralAssemblyQuestionController::class, 'saveVote'])->name('general_assemblies.questions.votes.store')->withoutMiddleware(LogRequests::class);
 
     Route::get('/general_assemblies/{general_assembly}/presence_checks/create', [GeneralAssemblyPresenceCheckController::class, 'create'])->name('general_assemblies.presence_checks.create');
     Route::post('/general_assemblies/{general_assembly}/presence_checks', [GeneralAssemblyPresenceCheckController::class, 'store'])->name('general_assemblies.presence_checks.store');
     Route::get('/general_assemblies/{general_assembly}/presence_checks/{presence_check}', [GeneralAssemblyPresenceCheckController::class, 'show'])->name('general_assemblies.presence_checks.show');
     Route::post('/general_assemblies/{general_assembly}/presence_checks/{presence_check}/close', [GeneralAssemblyPresenceCheckController::class, 'closePresenceCheck'])->name('general_assemblies.presence_checks.close');
-    Route::post('/general_assemblies/{general_assembly}/presence_checks/{presence_check}/sign_presence', [GeneralAssemblyPresenceCheckController::class, 'signPresence'])->name('general_assemblies.presence_checks.presence.store')->withoutMiddleware('log');
+    Route::post('/general_assemblies/{general_assembly}/presence_checks/{presence_check}/sign_presence', [GeneralAssemblyPresenceCheckController::class, 'signPresence'])->name('general_assemblies.presence_checks.presence.store')->withoutMiddleware(LogRequests::class);
 });
