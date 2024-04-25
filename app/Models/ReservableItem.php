@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use app\Models\Reservation;
+
+use Carbon\Carbon;
+
 class ReservableItem extends Model
 {
     use HasFactory;
@@ -33,5 +37,40 @@ class ReservableItem extends Model
     public function users() : BelongsToMany
     {
         return $this->belongsToMany(User::Class, Reservation::class, 'reservable_item_id', 'user_id');
+    }
+
+    /**
+     * @return bool Returns whether the item is currently out of order.
+     */
+    public function isOutOfOrder() : bool
+    {
+        if (is_null($this->out_of_order_from))
+            return false;
+
+        $from = new Carbon($this->out_of_order_from);
+        $now = Carbon::now();
+        if ($now < $from)
+            return false;
+        
+        if (is_null($this->out_of_order_until))
+            return true;
+
+        $until = new Carbon($this->out_of_order_until);
+        return $now < $until;
+    }
+
+    /**
+     * @return bool Returns whether the item is free at the moment; or false if out of order.
+     */
+    public function isFree() : bool
+    {
+        if ($this->isOutOfOrder())
+            return false;
+
+        $now = Carbon::now();
+        return Reservation::where('reservable_item_id', $this->id)
+                   ->where('reserved_from', '<=', $now)
+                   ->where('reserved_until', '>', $now)
+                   ->doesntExists();
     }
 }

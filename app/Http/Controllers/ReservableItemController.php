@@ -9,13 +9,15 @@ use App\Models\ReservableItem;
 class ReservableItemController extends Controller
 {
     public function index(Request $request) {
-        $type = $requst->type;
-        if (is_null(type)) {
+        $type = $request->type;
+        if (is_null($type)) {
+            $items = ReservableItem::all();
             return response()->json(ReservableItem::all()->get());
         } else if('washing_machine' == $type) {
+            
             return response()->json(ReservableItem::where('type', 'washing_machine')->get());
         } else if('room' == $type) {
-            return response()->json(ReservableItem::where('type', 'washing_machine')->get());
+            return response()->json(ReservableItem::where('type', 'room')->get());
         } else {
             abort(400, "Unknown reservable item type: $type");
         }
