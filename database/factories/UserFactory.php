@@ -34,6 +34,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'verified' => $this->faker->boolean($chanceOfGettingTrue = 75),
             'room' => Room::all()->random()->name,
+            'quote' => $this->faker->sentence(),
         ];
     }
 

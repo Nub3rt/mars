@@ -37,6 +37,7 @@ class UsersTableSeeder extends Seeder
             'email' => 'collegist@eotvos.elte.hu',
             'password' => bcrypt('asdasdasd'),
             'verified' => true,
+            'quote' => 'Nem volt szárított teveszar',
         ]);
         $this->createCollegist($collegist);
         $collegist->printAccount()->save(PrintAccount::factory()->make(['user_id' => $collegist->id]));
@@ -53,6 +54,7 @@ class UsersTableSeeder extends Seeder
             'email' => 'tenant@eotvos.elte.hu',
             'password' => bcrypt('asdasdasd'),
             'verified' => true,
+            'quote' => 'Evríbádi densz-densz-densz in dö diszkó',
         ]);
         $this->createTenant($tenant);
         $tenant->printAccount()->save(PrintAccount::factory()->make(['user_id' => $tenant->id]));
@@ -70,6 +72,7 @@ class UsersTableSeeder extends Seeder
             'email' => config('mail.test_mail'),
             'password' => bcrypt('asdasdasd'),
             'verified' => true,
+            'quote' => 'Én most kicsit lepihenek...',
         ]);
         $user->printAccount()->save(PrintAccount::factory()->make(['user_id' => $user->id]));
         $user->personalInformation()->save(PersonalInformation::factory()->make(['user_id' => $user->id]));
